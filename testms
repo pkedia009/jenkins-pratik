@@ -1,0 +1,120 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © protradingart
+
+//@version=5
+indicator("Pro Trading Art - Candlestick Patterns with alert", "PTA - Candlestick Patterns", overlay=true)
+
+distance = math.abs((open - close)/close*100)
+
+var candleRange = array.new_float(na)
+
+array.push(candleRange, distance)
+
+avgRange = array.avg(candleRange)
+
+// Function to create boxes for patterns
+createPatternBox(condition, patternText, isUp, boxColor) =>
+    if condition
+        boxTop = isUp ? low - (high - low) * 0.1 : high + (high - low) * 0.1
+        boxBottom = isUp ? low - (high - low) * 0.3 : high + (high - low) * 0.3
+        
+        patternBox = box.new(
+            left = bar_index,
+            top = boxTop,
+            right = bar_index + 2,
+            bottom = boxBottom,
+            bgcolor = boxColor,
+            border_color = boxColor,
+            border_width = 2,
+            text = patternText,
+            text_color = color.white,
+            text_size = size.small
+        )
+
+//#region Hammer
+hammer = (open-low) > (close-open)*2.0 and (close-open) > (high-close)
+createPatternBox(hammer, "Hammer", true, color.lime)
+
+if hammer
+    alert("Hammer in : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Hanging Man
+hanging = (open-low) > (close-open)*3.0 and (close-open) > (high-close)
+createPatternBox(hanging, "Hanging Man", false, color.rgb(240, 116, 116))
+
+if hanging
+    alert("Hanging Man In : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Inverted Hammer
+invertedHammer = (high-open) > (open-close)*2.0 and (open-close) > (close-low)
+createPatternBox(invertedHammer, "Inverted Hammer", true, color.rgb(60, 231, 148))
+
+if invertedHammer
+    alert("Inverted Hammer : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Shooting Star
+shootingStar = (high-open) > (open-close)*2.0 and (open-close) > (close-low)
+createPatternBox(shootingStar, "Shooting Star", false, color.red)
+
+if shootingStar
+    alert("Shooting Star : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Morning Star
+morningStar(Open, Close, High, Low)=>
+    Close > Open and Close > Close[1] and Open > Open[1] and Open > Close [1] and Open[1] < Open[2] and Open[1] < Close[2] and Close[1] < Open[2] and Close[1] < Close[2] and Close < ta.sma(Close, 50) and
+     High > Low[2] and Close > Low[2]
+
+morningstar = morningStar(open, close, high, low)
+createPatternBox(morningstar, "Morning Star", true, color.green)
+
+if morningstar
+    alert("Morning Star : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Evening Star
+eveningStar(Open, Close, High, Low)=>
+    Close < Open and Close < Close[1] and Open < Open[1] and Open < Close [1] and Open[1] > Open[2] and Open[1] > Close[2] and Close[1] > Open[2] and Close[1] > Close[2] and Close > ta.sma(Close, 50) and
+     Low < High[2] and Close < High[2]
+
+eveningstar = eveningStar(open, close, high, low)
+createPatternBox(eveningstar, "Evening Star", false, color.red)
+
+if eveningstar
+    alert("Evening Star : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Bullish Engulfing
+bullishEngulfing = close > open[1] and close > close[1] and open < open[1] and open < close[1] and distance > avgRange
+createPatternBox(bullishEngulfing, "Bullish Engulfing", true, color.green)
+
+if bullishEngulfing
+    alert("Bullish Engulfing in : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Bearish Engulfing
+bearishEngulfing = close < open[1] and close < close[1] and open > open[1] and open > close[1] and distance > avgRange
+createPatternBox(bearishEngulfing, "Bearish Engulfing", false, color.red)
+
+if bearishEngulfing
+    alert("Bearish Engulfing in : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Dark Cloud Cover
+darkCloud = close[1] > open[1] and close < open and open > high[1] and close < close[1] - (high[1] - low[1])/4 and close > open[1]
+createPatternBox(darkCloud, "Dark Cloud Cover", false, color.rgb(250, 64, 64))
+
+if darkCloud
+    alert("Dark - Cloud Cover in : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
+
+//#region Piercing Pattern
+piercing = close[1] < open[1] and close > open and close > close[1] + (open[1] - close[1])/2 and open < low[1] and close < open[1]
+createPatternBox(piercing, "Piercing Pattern", true, color.rgb(1, 189, 98))
+
+if piercing
+    alert("Piercing Pattern in : "+syminfo.ticker, alert.freq_once_per_bar_close)
+//#endregion
