@@ -1,0 +1,191 @@
+//@version=5
+indicator("Chart Pattern Detector", overlay=true, max_labels_count=500)
+
+// INPUT PARAMETERS
+show_bullish = input.bool(true, "Show Bullish Patterns")
+show_bearish = input.bool(true, "Show Bearish Patterns")
+pattern_sensitivity = input.int(10, "Pattern Sensitivity", minval=5, maxval=50)
+lookback = input.int(20, "Lookback Period", minval=10, maxval=100)
+
+// PATTERN DETECTION FUNCTIONS
+
+// Head and Shoulders Detection
+detect_head_shoulders() =>
+    var float left_shoulder = na
+    var float head = na
+    var float right_shoulder = na
+    var int ls_bar = na
+    var int h_bar = na
+    var int rs_bar = na
+    
+    if high[3] > high[4] and high[3] > high[2]
+        left_shoulder := high[3]
+        ls_bar := bar_index[3]
+    
+    if high[1] > high[2] and high[1] > high[0] and not na(left_shoulder)
+        if high[1] > left_shoulder
+            head := high[1]
+            h_bar := bar_index[1]
+    
+    pattern_found = false
+    if high[5] > high[6] and high[5] > high[4] and not na(head)
+        if high[5] < head and math.abs(high[5] - left_shoulder) < left_shoulder * 0.02
+            right_shoulder := high[5]
+            rs_bar := bar_index[5]
+            pattern_found := true
+    
+    pattern_found
+
+// Inverted Head and Shoulders Detection
+detect_inv_head_shoulders() =>
+    var float left_shoulder = na
+    var float head = na
+    var float right_shoulder = na
+    
+    if low[3] < low[4] and low[3] < low[2]
+        left_shoulder := low[3]
+    
+    if low[1] < low[2] and low[1] < low[0] and not na(left_shoulder)
+        if low[1] < left_shoulder
+            head := low[1]
+    
+    pattern_found = false
+    if low[5] < low[6] and low[5] < low[4] and not na(head)
+        if low[5] > head and math.abs(low[5] - left_shoulder) < left_shoulder * 0.02
+            pattern_found := true
+    
+    pattern_found
+
+// Double Top Detection
+detect_double_top() =>
+    peak1 = high[10]
+    peak2 = high[2]
+    trough = ta.lowest(low, 8)
+    
+    is_peak1 = high[10] > high[11] and high[10] > high[9]
+    is_peak2 = high[2] > high[3] and high[2] > high[1]
+    similar_peaks = math.abs(peak1 - peak2) < peak1 * 0.02
+    significant_trough = peak1 - trough > peak1 * 0.03
+    
+    is_peak1 and is_peak2 and similar_peaks and significant_trough
+
+// Double Bottom Detection
+detect_double_bottom() =>
+    trough1 = low[10]
+    trough2 = low[2]
+    peak = ta.highest(high, 8)
+    
+    is_trough1 = low[10] < low[11] and low[10] < low[9]
+    is_trough2 = low[2] < low[3] and low[2] < low[1]
+    similar_troughs = math.abs(trough1 - trough2) < trough1 * 0.02
+    significant_peak = peak - trough1 > trough1 * 0.03
+    
+    is_trough1 and is_trough2 and similar_troughs and significant_peak
+
+// Rounding Top Detection
+detect_rounding_top() =>
+    highest_point = ta.highest(high, lookback)
+    avg_high = ta.sma(high, lookback)
+    rounded = true
+    
+    for i = 0 to lookback - 1
+        if math.abs(high[i] - avg_high) > highest_point * 0.05
+            rounded := false
+            break
+    
+    rounded and high < high[lookback/2]
+
+// Rounding Bottom Detection
+detect_rounding_bottom() =>
+    lowest_point = ta.lowest(low, lookback)
+    avg_low = ta.sma(low, lookback)
+    rounded = true
+    
+    for i = 0 to lookback - 1
+        if math.abs(low[i] - avg_low) > lowest_point * 0.05
+            rounded := false
+            break
+    
+    rounded and low > low[lookback/2]
+
+// Cup and Handle Detection
+detect_cup_handle() =>
+    cup_depth = ta.lowest(low, 30)
+    cup_left = high[30]
+    cup_right = high[5]
+    handle_low = ta.lowest(low[0], 5)
+    
+    is_cup = math.abs(cup_left - cup_right) < cup_left * 0.03
+    is_handle = handle_low > cup_depth and handle_low < cup_right
+    breakout = close > cup_right
+    
+    is_cup and is_handle and breakout
+
+// Flag Pattern Detection (Bullish)
+detect_flag_breakout() =>
+    strong_uptrend = close[10] > close[20] and (close[10] - close[20]) > close[20] * 0.05
+    consolidation = ta.highest(high[0], 5) - ta.lowest(low[0], 5) < close * 0.03
+    breakout = close > ta.highest(high[1], 5)
+    
+    strong_uptrend and consolidation and breakout
+
+// Flag Pattern Detection (Bearish)
+detect_flag_breakdown() =>
+    strong_downtrend = close[10] < close[20] and (close[20] - close[10]) > close[20] * 0.05
+    consolidation = ta.highest(high[0], 5) - ta.lowest(low[0], 5) < close * 0.03
+    breakdown = close < ta.lowest(low[1], 5)
+    
+    strong_downtrend and consolidation and breakdown
+
+// Fake Breakout Detection (Bullish)
+detect_fake_breakdown() =>
+    resistance = ta.highest(high, 20)
+    breakdown = low < ta.lowest(low[1], 10)
+    reversal = close > open and close > ta.lowest(low[1], 10)
+    
+    breakdown[1] and reversal
+
+// Fake Breakout Detection (Bearish)
+detect_fake_breakout() =>
+    support = ta.lowest(low, 20)
+    breakout = high > ta.highest(high[1], 10)
+    reversal = close < open and close < ta.highest(high[1], 10)
+    
+    breakout[1] and reversal
+
+// DETECT PATTERNS
+bullish_inv_hs = show_bullish and detect_inv_head_shoulders()
+bullish_double_bottom = show_bullish and detect_double_bottom()
+bullish_rounding_bottom = show_bullish and detect_rounding_bottom()
+bullish_cup_handle = show_bullish and detect_cup_handle()
+bullish_flag_breakout = show_bullish and detect_flag_breakout()
+bullish_fake_breakdown = show_bullish and detect_fake_breakdown()
+
+bearish_hs = show_bearish and detect_head_shoulders()
+bearish_double_top = show_bearish and detect_double_top()
+bearish_rounding_top = show_bearish and detect_rounding_top()
+bearish_flag_breakdown = show_bearish and detect_flag_breakdown()
+bearish_fake_breakout = show_bearish and detect_fake_breakout()
+
+// PLOT BULLISH PATTERNS
+plotshape(bullish_inv_hs, "Inv H&S", shape.labelup, location.belowbar, color.new(color.green, 0), text="INV H&S\nBUY", textcolor=color.white, size=size.small)
+plotshape(bullish_double_bottom, "Double Bottom", shape.labelup, location.belowbar, color.new(color.green, 0), text="DBL BTM\nBUY", textcolor=color.white, size=size.small)
+plotshape(bullish_rounding_bottom, "Rounding Bottom", shape.labelup, location.belowbar, color.new(color.green, 0), text="RND BTM\nBUY", textcolor=color.white, size=size.small)
+plotshape(bullish_cup_handle, "Cup & Handle", shape.labelup, location.belowbar, color.new(color.green, 0), text="CUP&HDL\nBUY", textcolor=color.white, size=size.small)
+plotshape(bullish_flag_breakout, "Flag Breakout", shape.labelup, location.belowbar, color.new(color.green, 0), text="FLAG BO\nBUY", textcolor=color.white, size=size.small)
+plotshape(bullish_fake_breakdown, "Fake Breakdown", shape.labelup, location.belowbar, color.new(color.green, 0), text="FAKE BD\nBUY", textcolor=color.white, size=size.small)
+
+// PLOT BEARISH PATTERNS
+plotshape(bearish_hs, "H&S", shape.labeldown, location.abovebar, color.new(color.red, 0), text="H&S\nSELL", textcolor=color.white, size=size.small)
+plotshape(bearish_double_top, "Double Top", shape.labeldown, location.abovebar, color.new(color.red, 0), text="DBL TOP\nSELL", textcolor=color.white, size=size.small)
+plotshape(bearish_rounding_top, "Rounding Top", shape.labeldown, location.abovebar, color.new(color.red, 0), text="RND TOP\nSELL", textcolor=color.white, size=size.small)
+plotshape(bearish_flag_breakdown, "Flag Breakdown", shape.labeldown, location.abovebar, color.new(color.red, 0), text="FLAG BD\nSELL", textcolor=color.white, size=size.small)
+plotshape(bearish_fake_breakout, "Fake Breakout", shape.labeldown, location.abovebar, color.new(color.red, 0), text="FAKE BO\nSELL", textcolor=color.white, size=size.small)
+
+// ALERTS
+alertcondition(bullish_inv_hs or bullish_double_bottom or bullish_rounding_bottom or bullish_cup_handle or bullish_flag_breakout or bullish_fake_breakdown, "Bullish Pattern", "Bullish Chart Pattern Detected - BUY Signal")
+alertcondition(bearish_hs or bearish_double_top or bearish_rounding_top or bearish_flag_breakdown or bearish_fake_breakout, "Bearish Pattern", "Bearish Chart Pattern Detected - SELL Signal")
+
+// BACKGROUND COLORING
+bgcolor(bullish_inv_hs or bullish_double_bottom or bullish_rounding_bottom or bullish_cup_handle or bullish_flag_breakout or bullish_fake_breakdown ? color.new(color.green, 95) : na)
+bgcolor(bearish_hs or bearish_double_top or bearish_rounding_top or bearish_flag_breakdown or bearish_fake_breakout ? color.new(color.red, 95) : na)
