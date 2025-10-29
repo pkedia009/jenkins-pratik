@@ -1,0 +1,72 @@
+//@version=5
+indicator("5-13-26 EMA Crossover Strategy", overlay=true)
+
+// INPUT PARAMETERS
+ema5_length = input.int(5, "EMA 5 Length", minval=1)
+ema13_length = input.int(13, "EMA 13 Length", minval=1)
+ema26_length = input.int(26, "EMA 26 Length", minval=1)
+
+show_buy_signals = input.bool(true, "Show BUY Signals")
+show_sell_signals = input.bool(true, "Show SELL Signals")
+show_background = input.bool(true, "Show Background Highlight")
+
+// CALCULATE EMAs
+ema5 = ta.ema(close, ema5_length)
+ema13 = ta.ema(close, ema13_length)
+ema26 = ta.ema(close, ema26_length)
+
+// PLOT EMAs
+plot(ema5, "EMA 5", color=color.new(color.green, 0), linewidth=2)
+plot(ema13, "EMA 13", color=color.new(color.orange, 0), linewidth=2)
+plot(ema26, "EMA 26", color=color.new(color.red, 0), linewidth=2)
+
+// DETECT POSITIVE CROSSOVERS (BUY SIGNALS)
+bullish_cross_5_13 = ta.crossover(ema5, ema13)
+bullish_cross_5_26 = ta.crossover(ema5, ema26)
+bullish_cross_13_26 = ta.crossover(ema13, ema26)
+
+bullish_signal = bullish_cross_5_13 or bullish_cross_5_26 or bullish_cross_13_26
+
+// DETECT NEGATIVE CROSSOVERS (SELL SIGNALS)
+bearish_cross_5_13 = ta.crossunder(ema5, ema13)
+bearish_cross_5_26 = ta.crossunder(ema5, ema26)
+bearish_cross_13_26 = ta.crossunder(ema13, ema26)
+
+bearish_signal = bearish_cross_5_13 or bearish_cross_5_26 or bearish_cross_13_26
+
+// PLOT BUY SIGNALS
+plotshape(show_buy_signals and bullish_signal, title="BUY Signal", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.small, text="BUY")
+
+// PLOT SELL SIGNALS
+plotshape(show_sell_signals and bearish_signal, title="SELL Signal", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="SELL")
+
+// BACKGROUND HIGHLIGHTING
+bgcolor(show_background and bullish_signal ? color.new(color.green, 90) : na, title="Bullish Background")
+bgcolor(show_background and bearish_signal ? color.new(color.red, 90) : na, title="Bearish Background")
+
+// TREND IDENTIFICATION
+uptrend = ema5 > ema13 and ema13 > ema26
+downtrend = ema5 < ema13 and ema13 < ema26
+
+// ALERT CONDITIONS
+alertcondition(bullish_signal, title="Bullish EMA Crossover", message="POSITIVE Crossover - BUY Signal Detected")
+alertcondition(bearish_signal, title="Bearish EMA Crossover", message="NEGATIVE Crossover - SELL Signal Detected")
+alertcondition(uptrend, title="Strong Uptrend", message="Strong Uptrend: EMA 5 > EMA 13 > EMA 26")
+alertcondition(downtrend, title="Strong Downtrend", message="Strong Downtrend: EMA 5 < EMA 13 < EMA 26")
+
+// TABLE FOR SIGNAL INFORMATION
+var table signal_table = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 80), frame_width=2, frame_color=color.gray)
+
+if barstate.islast
+    table.cell(signal_table, 0, 0, "Indicator", text_color=color.white, bgcolor=color.new(color.blue, 50))
+    table.cell(signal_table, 1, 0, "Status", text_color=color.white, bgcolor=color.new(color.blue, 50))
+    table.cell(signal_table, 0, 1, "EMA 5", text_color=color.white)
+    table.cell(signal_table, 1, 1, str.tostring(math.round(ema5, 2)), text_color=color.green)
+    table.cell(signal_table, 0, 2, "EMA 13", text_color=color.white)
+    table.cell(signal_table, 1, 2, str.tostring(math.round(ema13, 2)), text_color=color.orange)
+    table.cell(signal_table, 0, 3, "EMA 26", text_color=color.white)
+    table.cell(signal_table, 1, 3, str.tostring(math.round(ema26, 2)), text_color=color.red)
+    table.cell(signal_table, 0, 4, "Trend", text_color=color.white)
+    trend_text = uptrend ? "UPTREND" : downtrend ? "DOWNTREND" : "NEUTRAL"
+    trend_color = uptrend ? color.green : downtrend ? color.red : color.gray
+    table.cell(signal_table, 1, 4, trend_text, text_color=trend_color)
